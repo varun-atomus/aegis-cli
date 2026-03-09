@@ -1,0 +1,32 @@
+[Unit]
+Description=Aegis CLI Daemon - Device Compliance Monitoring
+Documentation=https://portal.atomuscyber.us
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/aegis daemon start --foreground
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=false
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aegis-cli
+
+# Environment
+Environment=NODE_ENV=production
+
+# Working directory
+WorkingDirectory=/var/lib/aegis-cli
+
+[Install]
+WantedBy=multi-user.target

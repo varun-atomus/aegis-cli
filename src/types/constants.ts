@@ -1,0 +1,169 @@
+// ─── Application Constants ──────────────────────────────────────────────────
+
+export const APP_NAME = "aegis-cli";
+export const APP_VERSION = "1.0.0";
+
+// ─── Environment Variables ──────────────────────────────────────────────────
+
+export const EnvVars = {
+  /** Pre-obtained bearer token — bypasses device code flow */
+  TOKEN: "AEGIS_TOKEN",
+  /** Cloud instance override: "commercial" or "gov" */
+  CLOUD: "AEGIS_CLOUD",
+} as const;
+
+// ─── Directory Paths ────────────────────────────────────────────────────────
+
+export const Directories = {
+  /** CLI binary location */
+  BIN: "/usr/local/bin",
+  /** Runtime data (config cache, osquery) */
+  DATA: "/var/lib/aegis-cli",
+  /** Log files */
+  LOGS: "/var/log/aegis-cli",
+  /** Shield binary and data */
+  SHIELD: "/opt/atomus-shield",
+  /** User-level config and credentials */
+  USER_CONFIG: `${process.env.HOME}/.atomus/aegis`,
+  /** PID file for daemon */
+  PID_FILE: "/var/run/aegis-cli.pid",
+  /** Osquery config */
+  OSQUERY_CONFIG: "/var/lib/aegis-cli/osquery",
+} as const;
+
+export const Files = {
+  CREDENTIALS: `${process.env.HOME}/.atomus/aegis/credentials`,
+  USER_CONFIG: `${process.env.HOME}/.atomus/aegis/config.json`,
+  CONFIG_CACHE: "/var/lib/aegis-cli/config-cache.json",
+  CLI_LOG: "/var/log/aegis-cli/cli.log",
+  DAEMON_LOG: "/var/log/aegis-cli/daemon.log",
+  SHIELD_LOG: "/opt/atomus-shield/logs/shield.log",
+  DAEMON_PID: "/var/run/aegis-cli.pid",
+  DAEMON_SOCKET: "/var/run/aegis-cli.sock",
+} as const;
+
+
+export const MicrosoftCloudInstances = {
+  COMMERCIAL: "commercial",
+  GOV: "gov",
+  UNSUPPORTED: "unsupported",
+} as const;
+
+export const MsalConfigs = {
+  COMMERCIAL: {
+    auth: {
+      clientId: "aa3c215f-a451-4241-a5c5-35566194cc93",
+      authority: "https://login.microsoftonline.com/organizations",
+    },
+  },
+  GOV: {
+    auth: {
+      clientId: "cdb93d6d-e578-4db4-aae1-713b77e7388d",
+      authority: "https://login.microsoftonline.us/organizations",
+    },
+  },
+} as const;
+
+export const MsalTokenScopes = {
+  DEFAULT: ".default",
+  OFFLINE_ACCESS: "offline_access",
+  ATOMUS_AEGIS_API: "api://atomus-aegis-api/.default",
+} as const;
+
+// ─── Microsoft URLs ─────────────────────────────────────────────────────────
+
+export const MicrosoftUrls = {
+  commercial: {
+    CloudInstanceUrl: "microsoftonline.com",
+    DataCollector: "ods.opinsights.azure.com",
+  },
+  gov: {
+    CloudInstanceUrl: "microsoftonline.us",
+    DataCollector: "ods.opinsights.azure.us",
+  },
+} as const;
+
+// ─── Shield Configuration ───────────────────────────────────────────────────
+
+export const ShieldConfig = {
+  BASE_URL: "http://127.0.0.1:7238",
+  ROUTES: {
+    PING: "/ping",
+    INIT: "/shield-context/init",
+    UPDATER_INFO: "/updater/info",
+    INSTALL_UPDATE: "/updater/install",
+    RUN_COMMAND: "/cmd/run",
+  },
+} as const;
+
+// ─── External API ───────────────────────────────────────────────────────────
+
+export const ExternalApiConfig = {
+  DEV_BASE_URL: "https://api-dev.atomuscyber.us/external/app",
+  PROD_BASE_URL: "https://api.atomuscyber.com/external/app",
+  ROUTES: {
+    APP_CONFIG: "/common/app-config",
+    GLOBAL_CONFIG: "/common/app-config/global",
+    ONBOARDING_STATUS: "/common/devices/onboarding-status",
+    DEVICE_INTEGRATION_IDS: "/common/devices/integration-ids",
+    UPDATE_LOGS: "/common/update-logs",
+    UPLOAD_LOGS: "/common/logs/upload",
+    COMPANIES: "/common/companies",
+    SERVICE_LOG_ALERTS: "/common/alerts/service-logs",
+  },
+} as const;
+
+// ─── Aegis Config Keys ─────────────────────────────────────────────────────
+
+export const AegisConfigKeys = {
+  ARC: "AzureConnectInfo",
+  BACKUP: "BackupConfig",
+  LOG_ANALYTICS: "LogAnalyticsInfo",
+  REG_KEYS: "RegistryKeys",
+  SEC_POL: "SecPol",
+  UPDATE_URL: "UpdateUrl",
+  VPN: "VPNConfig",
+} as const;
+
+export const AppConfigKeys = {
+  SOCKET_URL: "aegisSocketUrl",
+  EXTERNAL_API_URL: "externalApiUrl",
+  EXTERNAL_API_BACKUP_URL: "externalApiBackupUrl",
+  UPLOAD_LOGS_API_KEY: "uploadLogsApiKey",
+  CHANNEL: "channel",
+  SUPPORT_REQUEST_KEY: "supportRequestKey",
+} as const;
+
+
+export const HealthcheckTests = {
+  DEFENDER: "testDefender",
+  DISK_ENCRYPTION: "testDiskEncryption",
+  FIPS_ENABLED: "testFipsEnabled",
+  OSQUERY_STATUS: "testOsqueryStatus",
+  SHIELD_STATUS: "testShieldStatus",
+  CIS_BENCHMARKS: "testCisBenchmarks",
+  INTUNE: "testIntune",
+  /** macOS-specific: FileVault disk encryption */
+  FILEVAULT: "testFileVault",
+} as const;
+
+
+/** Run healthcheck daily at 2 PM */
+export const HC_CRON = "0 14 * * *";
+
+
+export const Duration = {
+  SECOND: 1000,
+  MINUTE: 60 * 1000,
+  HOUR: 60 * 60 * 1000,
+  DAY: 24 * 60 * 60 * 1000,
+} as const;
+
+// ─── Shield Error Codes ─────────────────────────────────────────────────────
+
+export const ErrorCodes = {
+  Global: {
+    ERR_BIND_JSON: 1001,
+    ERR_NOT_INITIALIZED: 1002,
+  },
+} as const;

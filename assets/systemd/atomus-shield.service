@@ -1,0 +1,33 @@
+[Unit]
+Description=Atomus Shield Security Agent
+Documentation=https://portal.atomuscyber.us
+After=network-online.target
+Wants=network-online.target
+Before=aegis-cli.service
+
+[Service]
+Type=simple
+ExecStart=/opt/atomus-shield/atomus-shield
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+# Run as root for privileged operations
+User=root
+Group=root
+
+# Security settings
+ProtectHome=read-only
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atomus-shield
+
+# Working directory
+WorkingDirectory=/opt/atomus-shield
+
+[Install]
+WantedBy=multi-user.target
