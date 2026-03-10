@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load .env before anything else
+import "./utils/env";
+
 /**
  * Aegis CLI - Entry Point
  *

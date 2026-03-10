@@ -227,4 +227,55 @@ export class ExternalApiClient {
       { authorization: `Basic ${apiKey}` }
     );
   }
+
+  /**
+   * Get backup preferences for the current user.
+   * Matching Mac app's getBackupPreferences().
+   */
+  async getBackupPreferences(): Promise<AegisResponse<any>> {
+    return this.get(ExternalApiConfig.ROUTES.BACKUP_PREFERENCES);
+  }
+
+  /**
+   * Get VPN preferences for the current user.
+   * Matching Mac app's getVpnPreferences().
+   */
+  async getVpnPreferences(): Promise<AegisResponse<any>> {
+    return this.get(ExternalApiConfig.ROUTES.VPN_PREFERENCES);
+  }
+
+  /**
+   * Get Defender onboarding JSON for Linux devices.
+   * Matching Mac app's getDefenderOnboardJson().
+   */
+  async getDefenderOnboardJson(): Promise<AegisResponse<string | null>> {
+    return this.get(ExternalApiConfig.ROUTES.DEFENDER_ONBOARD_JSON);
+  }
+
+  /**
+   * Check if Defender onboarding JSON exists.
+   */
+  async getDefenderOnboardJsonExists(): Promise<AegisResponse<boolean>> {
+    return this.get(
+      `${ExternalApiConfig.ROUTES.DEFENDER_ONBOARD_JSON}?is_for_exists=true`
+    );
+  }
+
+  /**
+   * Check if a feature is disabled for the current tenant.
+   * Matching Mac app's getFeatureIsDisabled().
+   */
+  async getFeatureIsDisabled(
+    featureId: string,
+    tenantId: string,
+    cloudInstance: CloudInstance
+  ): Promise<AegisResponse<boolean>> {
+    return this.get(
+      `${ExternalApiConfig.ROUTES.DISABLED_FEATURES}?featureId=${encodeURIComponent(featureId)}`,
+      {
+        "cloud-instance": cloudInstance,
+        "tenant-id": tenantId,
+      }
+    );
+  }
 }

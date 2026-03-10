@@ -19,11 +19,13 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@azure/msal-node": "^2.6.0",
+    "@azure/storage-blob": "^12.31.0",
     "axios": "^1.6.5",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.3",
     "commander": "^11.1.0",
     "dayjs": "^1.11.10",
+    "dotenv": "^17.3.1",
     "lodash": "^4.17.21",
     "ora": "^5.4.1",
     "toad-scheduler": "^3.0.1",

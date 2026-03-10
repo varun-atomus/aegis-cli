@@ -12,6 +12,7 @@ import {
   AegisConfigKeys,
   AppConfigKeys,
   ExternalApiConfig,
+  DevDefaults,
 } from "../../types/constants";
 import { KVStore, ExternalApiClient } from "../../utils";
 
@@ -32,7 +33,11 @@ export class ConfigService extends Service {
     this.authService = authService;
     this.configCache = new KVStore(Files.CONFIG_CACHE);
     this.userConfig = new KVStore(Files.USER_CONFIG);
-    this.externalApi = new ExternalApiClient();
+    // Use dev defaults for initial API client (before config pull)
+    this.externalApi = new ExternalApiClient(
+      DevDefaults.EXTERNAL_API_URL,
+      DevDefaults.EXTERNAL_API_BACKUP_URL
+    );
   }
 
   protected async doInit(): Promise<void> {
@@ -138,12 +143,32 @@ export class ConfigService extends Service {
   }
 
   /**
-   * Get the external API URL (from config or fallback).
+   * Get the external API URL (from stored config or dev default).
    */
   getExternalApiUrl(): string {
     return (
       this.userConfig.get<string>("externalApiUrl") ||
-      ExternalApiConfig.DEV_BASE_URL
+      DevDefaults.EXTERNAL_API_URL
+    );
+  }
+
+  /**
+   * Get the backup external API URL (from stored config or dev default).
+   */
+  getExternalApiBackupUrl(): string {
+    return (
+      this.userConfig.get<string>("externalApiBackupUrl") ||
+      DevDefaults.EXTERNAL_API_BACKUP_URL
+    );
+  }
+
+  /**
+   * Get the upload logs API key (from stored config or dev default).
+   */
+  getUploadLogsApiKey(): string {
+    return (
+      this.userConfig.get<string>("uploadLogsApiKey") ||
+      DevDefaults.UPLOAD_LOGS_API_KEY
     );
   }
 
@@ -160,7 +185,7 @@ export class ConfigService extends Service {
 
     const client = new ExternalApiClient(
       this.getExternalApiUrl(),
-      this.userConfig.get<string>("externalApiBackupUrl") || undefined
+      this.getExternalApiBackupUrl()
     );
     client.setToken(tokenResult.data.accessToken);
     return { success: true, data: client };

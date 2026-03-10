@@ -10,6 +10,22 @@ export const EnvVars = {
   TOKEN: "AEGIS_TOKEN",
   /** Cloud instance override: "commercial" or "gov" */
   CLOUD: "AEGIS_CLOUD",
+  /** Set "true" to skip automatic Shield download/install */
+  SKIP_SHIELD_INSTALL: "AEGIS_SKIP_SHIELD_INSTALL",
+  /** Enable debug logging */
+  DEBUG: "ATOMUS_DEBUG",
+} as const;
+
+// ─── Dev Environment Defaults (matching Mac app config.json) ────────────────
+
+export const DevDefaults = {
+  EXTERNAL_API_URL: "https://api-dev.atomuscyber.us/external/app",
+  EXTERNAL_API_BACKUP_URL: "https://api-dev.atomuscybersecurity.us/external/app",
+  UPLOAD_LOGS_API_KEY: "kq91kA9R5Akr92O0aofpeialag193zqw",
+  CHANNEL: "dev",
+  SUPPORT_REQUEST_KEY:
+    "42a64a1a17722dd512e800219a58bfbb9c0ce67812aae1ceec2c9e2e4b9031ec",
+  SOCKET_URL: "https://connect-dev.atomuscyber.us",
 } as const;
 
 // ─── Directory Paths ────────────────────────────────────────────────────────
@@ -110,7 +126,38 @@ export const ExternalApiConfig = {
     UPLOAD_LOGS: "/common/logs/upload",
     COMPANIES: "/common/companies",
     SERVICE_LOG_ALERTS: "/common/alerts/service-logs",
+    BACKUP_PREFERENCES: "/common/backup/preferences",
+    VPN_PREFERENCES: "/common/vpn/preferences",
+    DEFENDER_ONBOARD_JSON: "/linux/defender/defenderOnboardJson",
+    DISABLED_FEATURES: "/common/disabled-features/is-disabled",
   },
+} as const;
+
+// ─── Shield Install Configuration ───────────────────────────────────────────
+
+export const ShieldInstallConfig = {
+  /** Azure Blob Storage container names per platform */
+  CONTAINER: {
+    darwin: "atomus-shield-darwin",
+    linux: "atomus-shield-linux",
+  },
+  /** Binary name (same for all platforms) */
+  BINARY_NAME: "atomus-shield",
+  /** Platform install paths */
+  DARWIN: {
+    AGENT_DIR: "/Library/Application Support/com.atomuscyber.shield",
+    PLIST_FILE: "com.atomuscyber.shield.plist",
+    LAUNCH_DAEMON_DIR: "/Library/LaunchDaemons",
+  },
+  LINUX: {
+    AGENT_DIR: "/opt/atomus-shield",
+    SERVICE_FILE: "atomus-shield.service",
+    SERVICE_DIR: "/usr/lib/systemd/system",
+  },
+  /** Global config key for Azure storage connection string */
+  STORAGE_CONNECTION_STRING_KEY: "privateStorageConnectionString",
+  /** Temp download directory */
+  TMP_DIR: "/tmp/aegis-shield-install",
 } as const;
 
 // ─── Aegis Config Keys ─────────────────────────────────────────────────────
