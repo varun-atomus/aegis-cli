@@ -19,6 +19,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@azure/msal-node": "^2.6.0",
+    "@azure/msal-node-extensions": "^5.0.6",
     "@azure/storage-blob": "^12.31.0",
     "axios": "^1.6.5",
     "chalk": "^4.1.2",

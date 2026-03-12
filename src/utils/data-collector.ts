@@ -6,6 +6,11 @@ import { createServiceLogger } from "./logger";
 
 const log = createServiceLogger("data-collector");
 
+function getExecutionMode(): "cli" | "daemon" {
+  const argv = process.argv.join(" ").toLowerCase();
+  return argv.includes("daemon") ? "daemon" : "cli";
+}
+
 /**
  * Azure Log Analytics Data Collector client.
  * Uses SharedKey HMAC-SHA256 authentication to post data.
@@ -74,6 +79,8 @@ export class DataCollectorClient {
       // Append device info to each record if available
       const enrichedRecords = records.map((record) => {
         const enriched = { ...record };
+        enriched.AppSource = "aegis-cli";
+        enriched.ExecutionMode = getExecutionMode();
         if (addDeviceInfo && this.deviceInfo) {
           enriched.deviceName = this.deviceInfo.deviceName;
           enriched.platform = this.deviceInfo.platform;

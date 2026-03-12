@@ -129,12 +129,38 @@ export class ConfigService extends Service {
     const laInfo = this.aegisConfig[AegisConfigKeys.LOG_ANALYTICS];
     if (!laInfo) return null;
 
+    // Support both legacy and current backend schemas.
+    // Examples:
+    // - { workspaceId, workspaceKey }
+    // - { WorkspaceInfo: { customerId }, WorkspaceKey }
+    const workspaceId =
+      laInfo.workspaceId ||
+      laInfo.WorkspaceId ||
+      laInfo.workspaceID ||
+      laInfo.WorkspaceInfo?.customerId ||
+      laInfo.WorkspaceInfo?.workspaceId ||
+      laInfo.WorkspaceInfo?.WorkspaceId;
+
+    const workspaceKey = laInfo.workspaceKey || laInfo.WorkspaceKey;
+
+    if (
+      typeof workspaceId !== "string" ||
+      workspaceId.trim().length === 0 ||
+      typeof workspaceKey !== "string" ||
+      workspaceKey.trim().length === 0
+    ) {
+      this.logger.warn(
+        "Log Analytics config is present but missing workspace credentials"
+      );
+      return null;
+    }
+
     const creds = this.authService.getStoredCredentials();
     const cloudInstance = creds?.cloudInstance || "commercial";
 
     return {
-      workspaceId: laInfo.workspaceId,
-      workspaceKey: laInfo.workspaceKey,
+      workspaceId,
+      workspaceKey,
       baseUrl:
         cloudInstance === "gov"
           ? `ods.opinsights.azure.us`

@@ -43,6 +43,8 @@ export interface IDeviceInfo {
   deviceName: string;
   platform: NodeJS.Platform;
   aegisVersion: string;
+  /** Distinguishes CLI from Mac/Windows app in backend logs */
+  appSource: "aegis-cli";
 }
 
 // ─── Auth Types ─────────────────────────────────────────────────────────────

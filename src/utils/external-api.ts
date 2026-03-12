@@ -27,7 +27,8 @@ export class ExternalApiClient {
       timeout: 30000,
       headers: {
         "Content-Type": "application/json",
-        "aegis-version": APP_VERSION,
+        "aegis-version": `${APP_VERSION}-cli`,
+        "aegis-app-source": "aegis-cli",
       },
     });
 
@@ -37,7 +38,8 @@ export class ExternalApiClient {
         timeout: 30000,
         headers: {
           "Content-Type": "application/json",
-          "aegis-version": APP_VERSION,
+          "aegis-version": `${APP_VERSION}-cli`,
+          "aegis-app-source": "aegis-cli",
         },
       });
     }
@@ -163,7 +165,10 @@ export class ExternalApiClient {
     localUsername: string;
     osqueryMachineId?: string;
   }): Promise<AegisResponse<void>> {
-    return this.post(ExternalApiConfig.ROUTES.ONBOARDING_STATUS, params);
+    return this.post(ExternalApiConfig.ROUTES.ONBOARDING_STATUS, {
+      ...params,
+      appSource: "aegis-cli",
+    });
   }
 
   /**
@@ -182,6 +187,7 @@ export class ExternalApiClient {
       platform: deviceInfo.platform,
       timestamp: new Date().toISOString(),
       username: deviceInfo.username,
+      appSource: "aegis-cli",
     });
   }
 
@@ -194,8 +200,14 @@ export class ExternalApiClient {
     service: string;
     deviceName: string;
     timestamp: string;
+    appSource?: string;
+    executionMode?: "cli" | "daemon";
   }): Promise<AegisResponse<void>> {
-    return this.post(ExternalApiConfig.ROUTES.SERVICE_LOG_ALERTS, params);
+    return this.post(ExternalApiConfig.ROUTES.SERVICE_LOG_ALERTS, {
+      ...params,
+      appSource: params.appSource || "aegis-cli",
+      executionMode: params.executionMode || "cli",
+    });
   }
 
   /**

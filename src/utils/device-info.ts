@@ -11,6 +11,7 @@ export function getDeviceInfo(): IDeviceInfo {
     deviceName: os.hostname(),
     platform: process.platform,
     aegisVersion: APP_VERSION,
+    appSource: "aegis-cli",
   };
 }
 

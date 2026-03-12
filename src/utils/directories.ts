@@ -50,14 +50,36 @@ export function ensureUserDirectories(): void {
 }
 
 /**
+ * Resolve the PID file path:
+ * - Use system path when writable (systemd/root mode)
+ * - Fall back to user path for local non-root daemon mode
+ */
+function getDaemonPidFilePath(): string {
+  const systemPidPath = Files.DAEMON_PID;
+  const systemPidDir = path.dirname(systemPidPath);
+
+  try {
+    fs.accessSync(systemPidDir, fs.constants.W_OK);
+    return systemPidPath;
+  } catch {
+    const userRunDir = path.join(Directories.USER_CONFIG, "run");
+    if (!fs.existsSync(userRunDir)) {
+      fs.mkdirSync(userRunDir, { recursive: true });
+    }
+    return path.join(userRunDir, "aegis-cli.pid");
+  }
+}
+
+/**
  * Check if the daemon PID file exists and the process is running.
  */
 export function isDaemonRunning(): { running: boolean; pid?: number } {
+  const pidFile = getDaemonPidFilePath();
   try {
-    if (!fs.existsSync(Files.DAEMON_PID)) {
+    if (!fs.existsSync(pidFile)) {
       return { running: false };
     }
-    const pid = parseInt(fs.readFileSync(Files.DAEMON_PID, "utf-8").trim(), 10);
+    const pid = parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
     if (isNaN(pid)) {
       return { running: false };
     }
@@ -67,7 +89,9 @@ export function isDaemonRunning(): { running: boolean; pid?: number } {
   } catch {
     // Process not running, clean up stale PID file
     try {
-      fs.unlinkSync(Files.DAEMON_PID);
+      if (fs.existsSync(pidFile)) {
+        fs.unlinkSync(pidFile);
+      }
     } catch {}
     return { running: false };
   }
@@ -77,20 +101,22 @@ export function isDaemonRunning(): { running: boolean; pid?: number } {
  * Write the current process PID to the PID file.
  */
 export function writePidFile(): void {
-  const pidDir = path.dirname(Files.DAEMON_PID);
+  const pidFile = getDaemonPidFilePath();
+  const pidDir = path.dirname(pidFile);
   if (!fs.existsSync(pidDir)) {
     fs.mkdirSync(pidDir, { recursive: true });
   }
-  fs.writeFileSync(Files.DAEMON_PID, process.pid.toString(), "utf-8");
+  fs.writeFileSync(pidFile, process.pid.toString(), "utf-8");
 }
 
 /**
  * Remove the PID file on shutdown.
  */
 export function removePidFile(): void {
+  const pidFile = getDaemonPidFilePath();
   try {
-    if (fs.existsSync(Files.DAEMON_PID)) {
-      fs.unlinkSync(Files.DAEMON_PID);
+    if (fs.existsSync(pidFile)) {
+      fs.unlinkSync(pidFile);
     }
   } catch {}
 }

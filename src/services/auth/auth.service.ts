@@ -1,4 +1,9 @@
 import * as msal from "@azure/msal-node";
+import {
+  PersistenceCreator,
+  PersistenceCachePlugin,
+  DataProtectionScope,
+} from "@azure/msal-node-extensions";
 import * as fs from "fs";
 import * as path from "path";
 import { Service } from "../base/service";
@@ -30,30 +35,18 @@ import { ensureUserDirectories } from "../../utils/directories";
  * Alternatively, set AEGIS_TOKEN env var to bypass device code flow entirely.
  */
 export class AuthService extends Service {
-  private commercialApp: msal.PublicClientApplication;
-  private govApp: msal.PublicClientApplication;
+  private commercialApp: msal.PublicClientApplication | null = null;
+  private govApp: msal.PublicClientApplication | null = null;
   private credentials: StoredCredentials | null = null;
 
   constructor() {
     super("auth-provider");
-
-    this.commercialApp = new msal.PublicClientApplication({
-      auth: {
-        clientId: MsalConfigs.COMMERCIAL.auth.clientId,
-        authority: MsalConfigs.COMMERCIAL.auth.authority,
-      },
-    });
-
-    this.govApp = new msal.PublicClientApplication({
-      auth: {
-        clientId: MsalConfigs.GOV.auth.clientId,
-        authority: MsalConfigs.GOV.auth.authority,
-      },
-    });
   }
 
   protected async doInit(): Promise<void> {
     ensureUserDirectories();
+    this.commercialApp = await this.createPublicClientApplication("commercial");
+    this.govApp = await this.createPublicClientApplication("gov");
     this.loadStoredCredentials();
   }
 
@@ -99,8 +92,7 @@ export class AuthService extends Service {
   ): Promise<ITypedOperationResult<AuthCredentials>> {
     await this.waitForInit();
 
-    const app =
-      cloudInstance === "gov" ? this.govApp : this.commercialApp;
+    const app = this.getAppForCloud(cloudInstance);
 
     const scopes = [
       MsalTokenScopes.ATOMUS_AEGIS_API,
@@ -181,7 +173,7 @@ export class AuthService extends Service {
     }
 
     const { cloudInstance, homeAccountId } = this.credentials;
-    const app = cloudInstance === "gov" ? this.govApp : this.commercialApp;
+    const app = this.getAppForCloud(cloudInstance);
 
     try {
       // Try to get cached account
@@ -262,6 +254,12 @@ export class AuthService extends Service {
       if (fs.existsSync(Files.CREDENTIALS)) {
         fs.unlinkSync(Files.CREDENTIALS);
       }
+      for (const cloud of ["commercial", "gov"] as const) {
+        const cachePath = this.getMsalCachePath(cloud);
+        if (fs.existsSync(cachePath)) {
+          fs.unlinkSync(cachePath);
+        }
+      }
       this.logger.info("Logged out successfully");
     } catch (err: any) {
       this.logger.error(`Failed to clear credentials: ${err.message}`);
@@ -338,6 +336,55 @@ export class AuthService extends Service {
       });
     } catch (err: any) {
       this.logger.error(`Failed to store credentials: ${err.message}`);
+    }
+  }
+
+  private getAppForCloud(cloudInstance: CloudInstance): msal.PublicClientApplication {
+    const app = cloudInstance === "gov" ? this.govApp : this.commercialApp;
+    if (!app) {
+      throw new Error("Auth service is not initialized");
+    }
+    return app;
+  }
+
+  private getMsalCachePath(cloudInstance: CloudInstance): string {
+    return path.join(Directories.USER_CONFIG, `msal-${cloudInstance}.cache`);
+  }
+
+  private async createPublicClientApplication(
+    cloudInstance: CloudInstance
+  ): Promise<msal.PublicClientApplication> {
+    const config =
+      cloudInstance === "gov" ? MsalConfigs.GOV : MsalConfigs.COMMERCIAL;
+
+    try {
+      const persistence = await PersistenceCreator.createPersistence({
+        cachePath: this.getMsalCachePath(cloudInstance),
+        dataProtectionScope: DataProtectionScope.CurrentUser,
+        serviceName: "aegis-msal-browser",
+        accountName: `aegis-msal-${cloudInstance}`,
+        usePlaintextFileOnLinux: false,
+      });
+
+      return new msal.PublicClientApplication({
+        auth: {
+          clientId: config.auth.clientId,
+          authority: config.auth.authority,
+        },
+        cache: {
+          cachePlugin: new PersistenceCachePlugin(persistence),
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `MSAL secure cache unavailable for ${cloudInstance}; falling back to in-memory cache: ${err.message}`
+      );
+      return new msal.PublicClientApplication({
+        auth: {
+          clientId: config.auth.clientId,
+          authority: config.auth.authority,
+        },
+      });
     }
   }
 }

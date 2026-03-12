@@ -261,6 +261,8 @@ aegis compliance test testCisBenchmarks
 aegis compliance test testIntune
 ```
 
+Compliance results are uploaded to Azure Log Analytics (table based on `Log-Type`, currently `AegisHealthcheck`) whenever you run `aegis compliance run` or when the daemon runs scheduled checks.
+
 ### `aegis daemon` — Daemon Management
 
 ```bash
@@ -293,6 +295,30 @@ aegis daemon logs --lines 100
 
 # Follow logs in real-time
 aegis daemon logs --follow
+```
+
+---
+
+## Cloud Logs and CLI Filtering
+
+To send logs to cloud Log Analytics:
+
+1. Authenticate: `aegis auth login`
+2. Pull config (includes Log Analytics workspace details): `aegis config pull`
+3. Run checks manually: `aegis compliance run`  
+   or run continuously via daemon: `aegis daemon start --systemd`
+
+Cloud log records now include:
+- `AppSource = "aegis-cli"`
+- `ExecutionMode = "cli"` (manual command) or `"daemon"` (scheduled/background)
+
+Example KQL:
+
+```kusto
+AegisHealthcheck_CL
+| where AppSource_s == "aegis-cli"
+| summarize count() by ExecutionMode_s
+| order by count_ desc
 ```
 
 ### `aegis status` — Device Status

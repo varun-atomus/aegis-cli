@@ -21,8 +21,6 @@ export function registerDaemonCommands(program: Command): void {
     .command("daemon")
     .description("Manage the Aegis CLI daemon");
 
-  // ─── aegis daemon start ──────────────────────────────────────────
-
   daemon
     .command("start")
     .description("Start the Aegis daemon")
@@ -93,8 +91,6 @@ export function registerDaemonCommands(program: Command): void {
       }
     });
 
-  // ─── aegis daemon stop ───────────────────────────────────────────
-
   daemon
     .command("stop")
     .description("Stop the Aegis daemon")
@@ -142,8 +138,6 @@ export function registerDaemonCommands(program: Command): void {
         process.exit(1);
       }
     });
-
-  // ─── aegis daemon restart ────────────────────────────────────────
 
   daemon
     .command("restart")
@@ -222,8 +216,6 @@ export function registerDaemonCommands(program: Command): void {
 
       console.log();
     });
-
-  // ─── aegis daemon logs ───────────────────────────────────────────
 
   daemon
     .command("logs")

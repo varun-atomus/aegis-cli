@@ -519,6 +519,7 @@ export class HealthcheckService extends Service {
         Email: report.email || "",
         OverallCompliant: report.overallCompliant,
         TimeGenerated: report.timestamp,
+        AppSource: "aegis-cli",
       }));
 
       const success = await this.dataCollector.postData(

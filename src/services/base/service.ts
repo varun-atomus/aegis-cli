@@ -9,6 +9,11 @@ import type { ExternalApiClient } from "../../utils/external-api";
  */
 type ApiClientFactory = () => Promise<ExternalApiClient | null>;
 
+function getExecutionMode(): "cli" | "daemon" {
+  const argv = process.argv.join(" ").toLowerCase();
+  return argv.includes("daemon") ? "daemon" : "cli";
+}
+
 /**
  * Abstract base class for all Aegis CLI services.
  * Ported from the Electron app's Service base class pattern.
@@ -149,6 +154,8 @@ export abstract class Service {
         service: this.serviceId,
         deviceName: deviceInfo.deviceName,
         timestamp: new Date().toISOString(),
+        appSource: "aegis-cli",
+        executionMode: getExecutionMode(),
       });
     } catch {
       // Never let alert failures affect the service
