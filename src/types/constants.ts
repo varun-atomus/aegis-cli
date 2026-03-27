@@ -152,7 +152,7 @@ export const ShieldInstallConfig = {
   LINUX: {
     AGENT_DIR: "/opt/atomus-shield",
     SERVICE_FILE: "atomus-shield.service",
-    SERVICE_DIR: "/usr/lib/systemd/system",
+    SERVICE_DIR: "/etc/systemd/system",
   },
   /** Global config key for Azure storage connection string */
   STORAGE_CONNECTION_STRING_KEY: "privateStorageConnectionString",

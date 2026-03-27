@@ -380,8 +380,9 @@ export class ShieldService extends Service {
         `cp '${binaryPath}' '${cfg.AGENT_DIR}/'`,
         `cp '${servicePath}' '${cfg.SERVICE_DIR}/'`,
         `chmod +x '${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}'`,
-        `systemctl reenable '${cfg.SERVICE_FILE}'`,
-        `systemctl restart '${cfg.SERVICE_FILE}'`,
+        `systemctl daemon-reload`,
+        `systemctl enable '${SHIELD_SERVICE_NAME}'`,
+        `systemctl restart '${SHIELD_SERVICE_NAME}'`,
       ];
 
       this.logger.info(

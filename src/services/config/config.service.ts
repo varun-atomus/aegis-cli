@@ -15,6 +15,7 @@ import {
   DevDefaults,
 } from "../../types/constants";
 import { KVStore, ExternalApiClient } from "../../utils";
+import { getConfigCachePath } from "../../utils/directories";
 
 /**
  * Configuration service.
@@ -31,7 +32,7 @@ export class ConfigService extends Service {
   constructor(authService: AuthService) {
     super("aegis-config");
     this.authService = authService;
-    this.configCache = new KVStore(Files.CONFIG_CACHE);
+    this.configCache = new KVStore(getConfigCachePath());
     this.userConfig = new KVStore(Files.USER_CONFIG);
     // Use dev defaults for initial API client (before config pull)
     this.externalApi = new ExternalApiClient(

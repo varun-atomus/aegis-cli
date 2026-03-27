@@ -71,6 +71,26 @@ function getDaemonPidFilePath(): string {
 }
 
 /**
+ * Resolve the config cache path:
+ * - Use system path when writable
+ * - Fall back to user path for non-root
+ */
+export function getConfigCachePath(): string {
+  const systemCachePath = Files.CONFIG_CACHE;
+  const systemCacheDir = path.dirname(systemCachePath);
+
+  try {
+    if (!fs.existsSync(systemCacheDir)) {
+      fs.mkdirSync(systemCacheDir, { recursive: true });
+    }
+    fs.accessSync(systemCacheDir, fs.constants.W_OK);
+    return systemCachePath;
+  } catch {
+    return path.join(Directories.USER_CONFIG, "config-cache.json");
+  }
+}
+
+/**
  * Check if the daemon PID file exists and the process is running.
  */
 export function isDaemonRunning(): { running: boolean; pid?: number } {

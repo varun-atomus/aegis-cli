@@ -25,7 +25,7 @@
     "@azure/msal-node": "^2.6.0",
     "@azure/msal-node-extensions": "^5.0.6",
     "@azure/storage-blob": "^12.31.0",
-    "axios": "^1.6.5",
+    "axios": "0.27.2",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.3",
     "commander": "^11.1.0",
