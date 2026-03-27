@@ -13,7 +13,9 @@
     "daemon": "node dist/daemon.js",
     "lint": "eslint src/",
     "clean": "rm -rf dist/",
-    "package": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output bin/aegis"
+    "package:linux": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output bin/aegis-linux",
+    "package:mac": "npm run build && pkg dist/index.js --targets node18-macos-x64 --output bin/aegis-mac",
+    "package": "npm run package:linux && npm run package:mac"
   },
   "author": "Atomus Corporation",
   "license": "UNLICENSED",
