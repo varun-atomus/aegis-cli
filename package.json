@@ -13,8 +13,10 @@
     "daemon": "node dist/daemon.js",
     "lint": "eslint src/",
     "clean": "rm -rf dist/",
-    "package:linux": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output bin/aegis-linux",
-    "package:mac": "npm run build && pkg dist/index.js --targets node18-macos-x64 --output bin/aegis-mac",
+    "package:linux-x64": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output bin/aegis-linux-x64",
+    "package:linux-arm64": "npm run build && pkg dist/index.js --targets node18-linux-arm64 --output bin/aegis-linux-arm64",
+    "package:linux": "npm run package:linux-x64 && npm run package:linux-arm64",
+    "package:mac": "npm run build && pkg dist/index.js --targets node18-macos-arm64 --output bin/aegis-mac",
     "package": "npm run package:linux && npm run package:mac"
   },
   "author": "Atomus Corporation",
