@@ -96,15 +96,18 @@ export class ShieldService extends Service {
    * Download and install Shield binary from Azure Blob Storage.
    * Mirrors the Mac app's AtomusShieldService.installAtomusShield() pattern.
    */
-  private async downloadAndInstallShield(): Promise<IOperationResult> {
+  private async downloadAndInstallShield(
+    connectionStringOverride?: string
+  ): Promise<IOperationResult> {
     try {
       // Step 1: Get Azure storage connection string
-      const connString = await this.getStorageConnectionString();
+      const connString =
+        connectionStringOverride || (await this.getStorageConnectionString());
       if (!connString) {
         return {
           success: false,
           error:
-            "Could not obtain Azure storage connection string. Ensure you are authenticated and config has been pulled.",
+            "Could not obtain Azure storage connection string. Ensure you are authenticated and config has been pulled, or pass --connection-string manually.",
         };
       }
 

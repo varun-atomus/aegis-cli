@@ -20,5 +20,5 @@ const ENV_PATHS = [
 ];
 
 for (const envPath of ENV_PATHS) {
-  config({ path: envPath, override: false });
+  config({ path: envPath, override: false, quiet: true });
 }

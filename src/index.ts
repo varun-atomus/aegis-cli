@@ -29,6 +29,8 @@ import {
   registerComplianceCommands,
   registerDaemonCommands,
   registerConfigCommands,
+  registerShieldCommands,
+  registerUninstallCommand,
 } from "./commands";
 import { AuthService } from "./services/auth/auth.service";
 import { ConfigService } from "./services/config/config.service";
@@ -121,6 +123,8 @@ registerConfigCommands(program, async () => ({
 registerStatusCommand(program, getAllServices);
 registerComplianceCommands(program, getHealthcheckService);
 registerDaemonCommands(program);
+registerShieldCommands(program, async () => ({ shield: await getShieldService() }));
+registerUninstallCommand(program);
 
 // ─── Update Command ─────────────────────────────────────────────────────
 
