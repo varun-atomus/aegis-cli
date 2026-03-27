@@ -47,5 +47,16 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/axios/**/*",
+      "node_modules/@azure/**/*",
+      "node_modules/winston/**/*",
+      "node_modules/winston-daily-rotate-file/**/*"
+    ],
+    "scripts": [
+      "dist/**/*.js"
+    ]
   }
 }
