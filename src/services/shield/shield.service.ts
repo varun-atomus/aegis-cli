@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { ContainerClient } from "@azure/storage-blob";
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, chmodSync } from "fs";
+import { existsSync, mkdirSync, chmodSync, readFileSync } from "fs";
 import path from "path";
 import { webcrypto } from "crypto";
 import { Service } from "../base/service";
@@ -91,9 +91,15 @@ export class ShieldService extends Service {
     if (alive) {
       this.logger.info("Shield daemon started successfully after install");
     } else {
+      const standaloneLogSnippet = this.getStandaloneShieldLogSnippet();
       this.logger.warn(
         "Shield installed but daemon not reachable after waiting. Check service logs."
       );
+      if (standaloneLogSnippet) {
+        this.logger.warn(
+          `Standalone shield log tail (/tmp/atomus-shield.log): ${standaloneLogSnippet}`
+        );
+      }
     }
   }
 
@@ -384,7 +390,9 @@ export class ShieldService extends Service {
         .getBlobClient(cfg.SERVICE_FILE)
         .downloadToFile(servicePath);
 
-      if (this.hasSystemd()) {
+      const usingSystemd = this.hasSystemd();
+
+      if (usingSystemd) {
         // systemd host path (VM/server)
         const commands = [
           `mkdir -p "${cfg.AGENT_DIR}"`,
@@ -414,10 +422,14 @@ export class ShieldService extends Service {
         this.runLinuxInstallCommands(commands);
       }
 
-      // Wait for systemd to start the service
+      // Give Shield time to start after install
       await this.sleep(5000);
 
-      this.logger.info("Shield installed on Linux via systemd");
+      this.logger.info(
+        usingSystemd
+          ? "Shield installed on Linux via systemd"
+          : "Shield installed on Linux in standalone mode"
+      );
       return { success: true };
     } catch (err: any) {
       return {
@@ -473,6 +485,19 @@ export class ShieldService extends Service {
     }
 
     throw new Error("sudo is not available. Run as root or install sudo.");
+  }
+
+  private getStandaloneShieldLogSnippet(): string | null {
+    const logPath = "/tmp/atomus-shield.log";
+    try {
+      if (!existsSync(logPath)) return null;
+      const content = readFileSync(logPath, "utf-8").trim();
+      if (!content) return null;
+      const lines = content.split("\n");
+      return lines.slice(-8).join(" | ");
+    } catch {
+      return null;
+    }
   }
 
   // ─── Public API ───────────────────────────────────────────────────
