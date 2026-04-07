@@ -183,6 +183,27 @@ export class AuthService extends Service {
         : accounts[0];
 
       if (!account) {
+        // Container/headless environments may not preserve keyring-backed
+        // account cache between short-lived CLI processes. Fall back to the
+        // locally stored access token when it is still valid.
+        if (
+          this.credentials.accessToken &&
+          (!this.credentials.expiresOn ||
+            new Date(this.credentials.expiresOn) > new Date())
+        ) {
+          return {
+            success: true,
+            data: {
+              accessToken: this.credentials.accessToken,
+              email: this.credentials.email,
+              tenantId: this.credentials.tenantId,
+              cloudInstance,
+              expiresOn: this.credentials.expiresOn
+                ? new Date(this.credentials.expiresOn)
+                : undefined,
+            },
+          };
+        }
         return {
           success: false,
           error: "No cached account found. Run 'aegis auth login' first.",
@@ -363,7 +384,9 @@ export class AuthService extends Service {
         dataProtectionScope: DataProtectionScope.CurrentUser,
         serviceName: "aegis-msal-browser",
         accountName: `aegis-msal-${cloudInstance}`,
-        usePlaintextFileOnLinux: false,
+        // Headless containers often lack libsecret/keyring; allow secure-file
+        // fallback so token cache persists across CLI invocations.
+        usePlaintextFileOnLinux: process.platform === "linux",
       });
 
       return new msal.PublicClientApplication({
