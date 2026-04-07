@@ -3,6 +3,7 @@ import { ContainerClient } from "@azure/storage-blob";
 import { execSync } from "child_process";
 import { existsSync, mkdirSync, chmodSync } from "fs";
 import path from "path";
+import { webcrypto } from "crypto";
 import { Service } from "../base/service";
 import { ConfigService } from "../config/config.service";
 import {
@@ -25,6 +26,12 @@ import {
 } from "../../utils/systemd";
 
 const SHIELD_SERVICE_NAME = "atomus-shield";
+
+// Azure SDK may require Web Crypto in packaged/headless runtimes where
+// globalThis.crypto is missing.
+if (!(globalThis as any).crypto) {
+  (globalThis as any).crypto = webcrypto;
+}
 
 /**
  * Service for communicating with the Atomus Shield daemon.
