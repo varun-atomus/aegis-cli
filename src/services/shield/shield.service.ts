@@ -429,13 +429,19 @@ export class ShieldService extends Service {
         this.logger.info("Installing Shield on Linux via systemd...");
         this.runLinuxInstallCommands(commands);
       } else {
+        const shieldBinaryPath = `${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}`;
+        const standaloneStartCommand = this.getStandaloneStartCommand(
+          servicePath,
+          shieldBinaryPath
+        );
+
         // container/non-systemd path
         const commands = [
           `mkdir -p "${cfg.AGENT_DIR}"`,
           `cp "${binaryPath}" "${cfg.AGENT_DIR}/"`,
-          `chmod +x "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}"`,
-          `pkill -f "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}" 2>/dev/null || true`,
-          `nohup "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}" >/tmp/atomus-shield.log 2>&1 &`,
+          `chmod +x "${shieldBinaryPath}"`,
+          `pkill -f "${shieldBinaryPath}" 2>/dev/null || true`,
+          `nohup sh -c '${standaloneStartCommand}' >/tmp/atomus-shield.log 2>&1 &`,
         ];
 
         this.logger.info(
@@ -446,6 +452,16 @@ export class ShieldService extends Service {
 
       // Give Shield time to start after install
       await this.sleep(5000);
+
+      if (!usingSystemd && !this.isShieldProcessRunning()) {
+        const snippet = this.getStandaloneShieldLogSnippet();
+        return {
+          success: false,
+          error: snippet
+            ? `Standalone shield process exited early: ${snippet}`
+            : "Standalone shield process exited early; no log output was captured",
+        };
+      }
 
       this.logger.info(
         usingSystemd
@@ -519,6 +535,46 @@ export class ShieldService extends Service {
       return lines.slice(-8).join(" | ");
     } catch {
       return null;
+    }
+  }
+
+  private getStandaloneStartCommand(
+    servicePath: string,
+    fallbackBinaryPath: string
+  ): string {
+    try {
+      if (!existsSync(servicePath)) return `"${fallbackBinaryPath}"`;
+      const serviceFile = readFileSync(servicePath, "utf-8");
+      const execStartLine = serviceFile
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.startsWith("ExecStart="));
+
+      if (!execStartLine) return `"${fallbackBinaryPath}"`;
+
+      let execStart = execStartLine.replace(/^ExecStart=/, "").trim();
+      if (execStart.startsWith("-")) {
+        execStart = execStart.slice(1).trim();
+      }
+
+      // Ensure the command points to the installed binary path, not tmp path.
+      execStart = execStart.replace(
+        /\/tmp\/aegis-shield-install\/atomus-shield/g,
+        fallbackBinaryPath
+      );
+
+      return execStart || `"${fallbackBinaryPath}"`;
+    } catch {
+      return `"${fallbackBinaryPath}"`;
+    }
+  }
+
+  private isShieldProcessRunning(): boolean {
+    try {
+      execSync("pgrep -f atomus-shield", { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
     }
   }
 
