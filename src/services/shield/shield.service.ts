@@ -384,23 +384,35 @@ export class ShieldService extends Service {
         .getBlobClient(cfg.SERVICE_FILE)
         .downloadToFile(servicePath);
 
-      // Run elevated install steps via sudo
-      const commands = [
-        `mkdir -p '${cfg.AGENT_DIR}'`,
-        `cp '${binaryPath}' '${cfg.AGENT_DIR}/'`,
-        `cp '${servicePath}' '${cfg.SERVICE_DIR}/'`,
-        `chmod +x '${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}'`,
-        `systemctl daemon-reload`,
-        `systemctl enable '${SHIELD_SERVICE_NAME}'`,
-        `systemctl restart '${SHIELD_SERVICE_NAME}'`,
-      ];
+      if (this.hasSystemd()) {
+        // systemd host path (VM/server)
+        const commands = [
+          `mkdir -p "${cfg.AGENT_DIR}"`,
+          `cp "${binaryPath}" "${cfg.AGENT_DIR}/"`,
+          `cp "${servicePath}" "${cfg.SERVICE_DIR}/"`,
+          `chmod +x "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}"`,
+          `systemctl daemon-reload`,
+          `systemctl enable "${SHIELD_SERVICE_NAME}"`,
+          `systemctl restart "${SHIELD_SERVICE_NAME}"`,
+        ];
 
-      this.logger.info(
-        "Installing Shield on Linux (requires sudo)..."
-      );
-      execSync(`sudo sh -c '${commands.join(" && ")}'`, {
-        stdio: "inherit",
-      });
+        this.logger.info("Installing Shield on Linux via systemd...");
+        this.runLinuxInstallCommands(commands);
+      } else {
+        // container/non-systemd path
+        const commands = [
+          `mkdir -p "${cfg.AGENT_DIR}"`,
+          `cp "${binaryPath}" "${cfg.AGENT_DIR}/"`,
+          `chmod +x "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}"`,
+          `pkill -f "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}" 2>/dev/null || true`,
+          `nohup "${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}" >/tmp/atomus-shield.log 2>&1 &`,
+        ];
+
+        this.logger.info(
+          "Systemd not detected. Installing and launching Shield in standalone mode..."
+        );
+        this.runLinuxInstallCommands(commands);
+      }
 
       // Wait for systemd to start the service
       await this.sleep(5000);
@@ -430,6 +442,37 @@ export class ShieldService extends Service {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private hasCommand(cmd: string): boolean {
+    try {
+      execSync(`command -v ${cmd}`, { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private hasSystemd(): boolean {
+    return existsSync("/run/systemd/system") && this.hasCommand("systemctl");
+  }
+
+  private runLinuxInstallCommands(commands: string[]): void {
+    const command = commands.join(" && ");
+    const isRoot =
+      typeof process.getuid === "function" && process.getuid() === 0;
+
+    if (isRoot) {
+      execSync(`sh -c '${command}'`, { stdio: "inherit" });
+      return;
+    }
+
+    if (this.hasCommand("sudo")) {
+      execSync(`sudo sh -c '${command}'`, { stdio: "inherit" });
+      return;
+    }
+
+    throw new Error("sudo is not available. Run as root or install sudo.");
   }
 
   // ─── Public API ───────────────────────────────────────────────────
