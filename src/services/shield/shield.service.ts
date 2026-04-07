@@ -225,16 +225,38 @@ export class ShieldService extends Service {
         ShieldInstallConfig.BINARY_NAME
       );
       const client = new ContainerClient(connectionString, containerName);
-      const blobClient = client.getBlobClient(
-        ShieldInstallConfig.BINARY_NAME
-      );
-      await blobClient.downloadToFile(binaryPath);
+      const blobCandidates = this.getShieldBinaryBlobCandidates();
+      let lastError = "No candidate binary could be downloaded";
 
-      // Make executable
-      chmodSync(binaryPath, 0o755);
+      for (const blobName of blobCandidates) {
+        try {
+          const blobClient = client.getBlobClient(blobName);
+          await blobClient.downloadToFile(binaryPath);
 
-      this.logger.info(`Shield binary downloaded to: ${binaryPath}`);
-      return { success: true, binaryPath };
+          // Make executable
+          chmodSync(binaryPath, 0o755);
+
+          if (!this.isLinuxBinaryCompatibleWithHost(binaryPath)) {
+            lastError = `Downloaded '${blobName}' but binary architecture does not match host (${process.arch})`;
+            this.logger.warn(lastError);
+            continue;
+          }
+
+          this.logger.info(
+            `Shield binary downloaded to: ${binaryPath} (blob: ${blobName})`
+          );
+          return { success: true, binaryPath };
+        } catch (err: any) {
+          lastError = `${blobName}: ${err.message}`;
+          this.logger.debug(`Shield download candidate failed: ${lastError}`);
+        }
+      }
+
+      return {
+        success: false,
+        error: `Download failed: ${lastError}`,
+        binaryPath: "",
+      };
     } catch (err: any) {
       return {
         success: false,
@@ -497,6 +519,55 @@ export class ShieldService extends Service {
       return lines.slice(-8).join(" | ");
     } catch {
       return null;
+    }
+  }
+
+  private getShieldBinaryBlobCandidates(): string[] {
+    const base = ShieldInstallConfig.BINARY_NAME;
+    if (process.platform !== "linux") {
+      return [base];
+    }
+
+    if (process.arch === "arm64") {
+      return [
+        `${base}-linux-arm64`,
+        `${base}-arm64`,
+        `${base}-aarch64`,
+        base,
+      ];
+    }
+
+    if (process.arch === "x64") {
+      return [`${base}-linux-x64`, `${base}-x64`, `${base}-amd64`, base];
+    }
+
+    return [base];
+  }
+
+  private isLinuxBinaryCompatibleWithHost(binaryPath: string): boolean {
+    if (process.platform !== "linux") return true;
+
+    try {
+      const header = readFileSync(binaryPath);
+      if (header.length < 20) return true;
+
+      // ELF magic: 0x7f 'E' 'L' 'F'
+      if (
+        header[0] !== 0x7f ||
+        header[1] !== 0x45 ||
+        header[2] !== 0x4c ||
+        header[3] !== 0x46
+      ) {
+        return true;
+      }
+
+      const eMachine = header.readUInt16LE(18);
+      // 183 = AArch64, 62 = x86_64
+      if (process.arch === "arm64") return eMachine === 183;
+      if (process.arch === "x64") return eMachine === 62;
+      return true;
+    } catch {
+      return true;
     }
   }
 
