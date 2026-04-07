@@ -29,6 +29,7 @@ import {
   registerComplianceCommands,
   registerDaemonCommands,
   registerConfigCommands,
+  registerStartCommand,
   registerShieldCommands,
   registerUninstallCommand,
 } from "./commands";
@@ -123,6 +124,11 @@ registerConfigCommands(program, async () => ({
 registerStatusCommand(program, getAllServices);
 registerComplianceCommands(program, getHealthcheckService);
 registerDaemonCommands(program);
+registerStartCommand(program, async () => ({
+  auth: await getAuthService(),
+  config: await getConfigService(),
+  shield: await getShieldService(),
+}));
 registerShieldCommands(program, async () => ({ shield: await getShieldService() }));
 registerUninstallCommand(program);
 
