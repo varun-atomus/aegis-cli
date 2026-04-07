@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import { execSync } from "child_process";
 import { Service } from "../base/service";
 import { ShieldService } from "../shield/shield.service";
 import { ConfigService } from "../config/config.service";
@@ -220,80 +221,138 @@ export class HealthcheckService extends Service {
   // ─── macOS Test Implementations ─────────────────────────────────
 
   private async testFileVault(): Promise<HealthcheckResult> {
+    const ts = new Date().toISOString();
+
+    // Try via Shield first (privileged)
     const result = await this.shieldService.runCommand(
       "fdesetup status 2>/dev/null"
     );
 
     if (result.success && result.data) {
       const stdout = result.data.stdout || "";
-      const isOn = stdout.includes("FileVault is On");
-      return {
-        testName: HealthcheckTests.FILEVAULT,
-        passed: isOn,
-        details: isOn
-          ? "FileVault disk encryption is enabled"
-          : "FileVault disk encryption is not enabled",
-        timestamp: new Date().toISOString(),
-      };
+      if (stdout.includes("FileVault is On")) {
+        return { testName: HealthcheckTests.FILEVAULT, passed: true, details: "FileVault disk encryption is enabled", timestamp: ts };
+      }
+      if (stdout.includes("FileVault is Off")) {
+        return { testName: HealthcheckTests.FILEVAULT, passed: false, details: "FileVault disk encryption is not enabled", timestamp: ts };
+      }
     }
+
+    // Fallback: run locally (works if user has permission or is root)
+    try {
+      const out = execSync("fdesetup status 2>/dev/null", { encoding: "utf-8", timeout: 5000 }).trim();
+      if (out.includes("FileVault is On")) {
+        return { testName: HealthcheckTests.FILEVAULT, passed: true, details: "FileVault disk encryption is enabled", timestamp: ts };
+      }
+      if (out.includes("FileVault is Off")) {
+        return { testName: HealthcheckTests.FILEVAULT, passed: false, details: "FileVault disk encryption is not enabled", timestamp: ts };
+      }
+    } catch {}
 
     return {
       testName: HealthcheckTests.FILEVAULT,
       passed: false,
       details: "Could not check FileVault status",
-      timestamp: new Date().toISOString(),
+      timestamp: ts,
     };
   }
 
   private async testDefenderMac(): Promise<HealthcheckResult> {
+    const ts = new Date().toISOString();
+
+    // Try via Shield first
     const result = await this.shieldService.runCommand(
       "/usr/local/bin/mdatp health 2>/dev/null"
     );
 
-    if (result.success && result.data) {
-      const stdout = result.data.stdout || "";
-      const isHealthy = stdout.includes("healthy") || stdout.includes("true");
-      return {
-        testName: HealthcheckTests.DEFENDER,
-        passed: isHealthy,
-        details: isHealthy
-          ? "Microsoft Defender for Endpoint is healthy"
-          : "Microsoft Defender for Endpoint is not healthy",
-        timestamp: new Date().toISOString(),
-      };
+    let stdout = result.success ? (result.data?.stdout || "") : "";
+
+    // Fallback: run locally
+    if (!stdout) {
+      try {
+        stdout = execSync("/usr/local/bin/mdatp health 2>/dev/null", {
+          encoding: "utf-8",
+          timeout: 10000,
+        });
+      } catch {}
+    }
+
+    if (stdout) {
+      const rtpEnabled = /real_time_protection_enabled\s*:\s*true/i.test(stdout);
+      const isHealthy = /healthy\s*:\s*true/i.test(stdout);
+      const engineLoaded = stdout.includes("Engine load succeeded");
+      const installed = rtpEnabled || isHealthy || engineLoaded;
+
+      let detail = "Microsoft Defender for Endpoint";
+      if (isHealthy) {
+        detail += " is healthy";
+      } else if (installed) {
+        detail += " is installed (real-time protection active)";
+        if (/licensed\s*:\s*false/i.test(stdout)) {
+          detail += ", license missing";
+        }
+      } else {
+        detail += " is installed but not active";
+      }
+
+      return { testName: HealthcheckTests.DEFENDER, passed: installed, details: detail, timestamp: ts };
     }
 
     return {
       testName: HealthcheckTests.DEFENDER,
       passed: false,
       details: "Microsoft Defender for Endpoint is not installed",
-      timestamp: new Date().toISOString(),
+      timestamp: ts,
     };
   }
 
   private async testIntuneMac(): Promise<HealthcheckResult> {
-    // Check Company Portal + MDM profile
-    const cpResult = await this.shieldService.runCommand(
-      'test -d "/Applications/Company Portal.app" && echo "installed" || echo "not_installed"'
-    );
-    const cpInstalled =
-      cpResult.success && cpResult.data?.stdout?.includes("installed");
+    const ts = new Date().toISOString();
+    let cpInstalled = false;
+    let mdmEnrolled = false;
 
+    // Check Company Portal via Shield
+    const cpResult = await this.shieldService.runCommand(
+      'test -d "/Applications/Company Portal.app" && echo "cp_yes" || echo "cp_no"'
+    );
+    if (cpResult.success && cpResult.data?.stdout?.includes("cp_yes")) {
+      cpInstalled = true;
+    }
+
+    // Fallback: check directly
+    if (!cpInstalled) {
+      try {
+        const out = execSync(
+          'test -d "/Applications/Company Portal.app" && echo "cp_yes" || echo "cp_no"',
+          { encoding: "utf-8", timeout: 3000 }
+        ).trim();
+        cpInstalled = out.includes("cp_yes");
+      } catch {}
+    }
+
+    // Check MDM profile via Shield
     const profileResult = await this.shieldService.runCommand(
       "profiles list 2>/dev/null"
     );
-    const mdmEnrolled =
-      profileResult.success &&
-      (profileResult.data?.stdout || "").includes("Microsoft.Profiles.MDM");
+    if (profileResult.success && (profileResult.data?.stdout || "").includes("Microsoft.Profiles.MDM")) {
+      mdmEnrolled = true;
+    }
 
-    const passed = !!cpInstalled;
+    // Fallback: check profiles directly
+    if (!mdmEnrolled) {
+      try {
+        const out = execSync("profiles list 2>/dev/null", { encoding: "utf-8", timeout: 5000 });
+        mdmEnrolled = out.includes("Microsoft.Profiles.MDM");
+      } catch {}
+    }
+
     return {
       testName: HealthcheckTests.INTUNE,
-      passed,
-      details: passed
+      passed: cpInstalled,
+      details: cpInstalled
         ? `Company Portal installed${mdmEnrolled ? ", MDM enrolled" : ", MDM not enrolled"}`
         : "Company Portal is not installed",
-      timestamp: new Date().toISOString(),
+      timestamp: ts,
     };
   }
 
@@ -301,13 +360,34 @@ export class HealthcheckService extends Service {
 
   private async testShieldStatus(): Promise<HealthcheckResult> {
     const isAlive = await this.shieldService.pingAgent();
-    const info = isAlive ? await this.shieldService.getInfo() : null;
+    let pid: string | number = "unknown";
+    let version = "unknown";
+
+    if (isAlive) {
+      const info = await this.shieldService.getInfo();
+      if (info.success && info.data) {
+        const d = info.data as any;
+        pid = d.pid ?? d.Pid ?? d.PID ?? "unknown";
+        version = d.version ?? d.Version ?? d.appVersion ?? d.AppVersion ?? "unknown";
+        this.logger.debug(`Shield info response: ${JSON.stringify(info.data)}`);
+      }
+
+      // Fallback: get PID via pgrep
+      if (pid === "unknown") {
+        try {
+          pid = execSync("pgrep -f atomus-shield 2>/dev/null", {
+            encoding: "utf-8",
+            timeout: 3000,
+          }).trim().split("\n")[0] || "unknown";
+        } catch {}
+      }
+    }
 
     return {
       testName: HealthcheckTests.SHIELD_STATUS,
       passed: isAlive,
       details: isAlive
-        ? `Shield running (PID: ${info?.success ? (info.data as any)?.pid : "unknown"}, Version: ${info?.success ? (info.data as any)?.version : "unknown"})`
+        ? `Shield running (PID: ${pid}, Version: ${version})`
         : "Shield daemon is not reachable",
       timestamp: new Date().toISOString(),
     };
@@ -396,45 +476,47 @@ export class HealthcheckService extends Service {
   }
 
   private async testOsqueryStatus(): Promise<HealthcheckResult> {
-    // Try systemctl first (systemd hosts)
-    const systemctlResult = await this.shieldService.runCommand(
-      "systemctl is-active osqueryd 2>/dev/null"
-    );
+    const ts = new Date().toISOString();
 
-    if (systemctlResult.success && systemctlResult.data) {
-      const isActive = (systemctlResult.data.stdout || "").trim() === "active";
-      if (isActive) {
-        return {
-          testName: HealthcheckTests.OSQUERY_STATUS,
-          passed: true,
-          details: "osquery daemon is running (systemd)",
-          timestamp: new Date().toISOString(),
-        };
+    // macOS: check via launchctl
+    if (process.platform === "darwin") {
+      try {
+        const out = execSync(
+          "launchctl list 2>/dev/null | grep -i osquery || true",
+          { encoding: "utf-8", timeout: 5000 }
+        ).trim();
+        if (out) {
+          return { testName: HealthcheckTests.OSQUERY_STATUS, passed: true, details: "osquery daemon is running (launchd)", timestamp: ts };
+        }
+      } catch {}
+    }
+
+    // Linux: try systemctl first (systemd hosts)
+    if (process.platform === "linux") {
+      const systemctlResult = await this.shieldService.runCommand(
+        "systemctl is-active osqueryd 2>/dev/null"
+      );
+      if (systemctlResult.success && (systemctlResult.data?.stdout || "").trim() === "active") {
+        return { testName: HealthcheckTests.OSQUERY_STATUS, passed: true, details: "osquery daemon is running (systemd)", timestamp: ts };
       }
     }
 
-    // Fallback: check via pgrep (container/standalone mode)
-    const pgrepResult = await this.shieldService.runCommand(
-      "pgrep -f osqueryd >/dev/null 2>&1 && echo running || echo stopped"
-    );
-
-    if (pgrepResult.success && pgrepResult.data) {
-      const output = (pgrepResult.data.stdout || "").trim();
-      if (output === "running") {
-        return {
-          testName: HealthcheckTests.OSQUERY_STATUS,
-          passed: true,
-          details: "osquery daemon is running (standalone)",
-          timestamp: new Date().toISOString(),
-        };
-      }
-    }
+    // Cross-platform: direct pgrep (doesn't go through Shield)
+    try {
+      execSync("pgrep -f osqueryd", { stdio: "ignore", timeout: 5000 });
+      return {
+        testName: HealthcheckTests.OSQUERY_STATUS,
+        passed: true,
+        details: `osquery daemon is running (${process.platform === "darwin" ? "standalone" : "standalone"})`,
+        timestamp: ts,
+      };
+    } catch {}
 
     return {
       testName: HealthcheckTests.OSQUERY_STATUS,
       passed: false,
       details: "osquery daemon is not running",
-      timestamp: new Date().toISOString(),
+      timestamp: ts,
     };
   }
 

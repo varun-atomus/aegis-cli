@@ -87,14 +87,12 @@ sudo chmod +x /usr/local/bin/aegis
 
 ```bash
 aegis auth login --cloud gov
-aegis auth login --cloud gov --email user@agency.gov
 ```
 
 **Commercial cloud** (default):
 
 ```bash
 aegis auth login
-aegis auth login --email user@company.com
 ```
 
 Other auth commands:

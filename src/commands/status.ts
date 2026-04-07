@@ -2,6 +2,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import Table from "cli-table3";
 import ora from "ora";
+import { execSync } from "child_process";
 import { AuthService } from "../services/auth/auth.service";
 import { ConfigService } from "../services/config/config.service";
 import { ShieldService } from "../services/shield/shield.service";
@@ -41,8 +42,25 @@ export function registerStatusCommand(
         let shieldInfo: any = null;
         if (shieldAlive) {
           const info = await shield.getInfo();
-          if (info.success) {
-            shieldInfo = info.data;
+          if (info.success && info.data) {
+            const d = info.data as any;
+            shieldInfo = {
+              pid: d.pid ?? d.Pid ?? d.PID ?? null,
+              version: d.version ?? d.Version ?? d.appVersion ?? d.AppVersion ?? null,
+            };
+          }
+          // Fallback: get PID via pgrep if API didn't return it
+          if (!shieldInfo?.pid) {
+            try {
+              const pgrepPid = execSync("pgrep -f atomus-shield 2>/dev/null", {
+                encoding: "utf-8",
+                timeout: 3000,
+              }).trim().split("\n")[0];
+              if (pgrepPid) {
+                shieldInfo = shieldInfo || {};
+                shieldInfo.pid = pgrepPid;
+              }
+            } catch {}
           }
         }
 
