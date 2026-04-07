@@ -506,21 +506,26 @@ export class ShieldService extends Service {
   }
 
   private runLinuxInstallCommands(commands: string[]): void {
-    const command = commands.join(" && ");
     const isRoot =
       typeof process.getuid === "function" && process.getuid() === 0;
+    const prefix = isRoot ? "" : this.hasCommand("sudo") ? "sudo " : null;
 
-    if (isRoot) {
-      execSync(`sh -c '${command}'`, { stdio: "inherit" });
-      return;
+    if (prefix === null) {
+      throw new Error("sudo is not available. Run as root or install sudo.");
     }
 
-    if (this.hasCommand("sudo")) {
-      execSync(`sudo sh -c '${command}'`, { stdio: "inherit" });
-      return;
+    for (const cmd of commands) {
+      try {
+        execSync(`${prefix}sh -c '${cmd}'`, { stdio: "pipe" });
+      } catch (err: any) {
+        const stderr = err.stderr?.toString?.().trim() || "";
+        this.logger.debug(`Install command failed: ${cmd} → ${stderr || err.message}`);
+        // pkill failures are expected (process not running); skip them
+        if (!cmd.startsWith("pkill")) {
+          throw err;
+        }
+      }
     }
-
-    throw new Error("sudo is not available. Run as root or install sudo.");
   }
 
   private getStandaloneShieldLogSnippet(): string | null {
