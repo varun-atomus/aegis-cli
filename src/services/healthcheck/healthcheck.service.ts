@@ -396,27 +396,44 @@ export class HealthcheckService extends Service {
   }
 
   private async testOsqueryStatus(): Promise<HealthcheckResult> {
-    // Check if osqueryd service is running
-    const result = await this.shieldService.runCommand(
+    // Try systemctl first (systemd hosts)
+    const systemctlResult = await this.shieldService.runCommand(
       "systemctl is-active osqueryd 2>/dev/null"
     );
 
-    if (result.success && result.data) {
-      const isActive = (result.data.stdout || "").trim() === "active";
-      return {
-        testName: HealthcheckTests.OSQUERY_STATUS,
-        passed: isActive,
-        details: isActive
-          ? "osquery daemon is running"
-          : "osquery daemon is not running",
-        timestamp: new Date().toISOString(),
-      };
+    if (systemctlResult.success && systemctlResult.data) {
+      const isActive = (systemctlResult.data.stdout || "").trim() === "active";
+      if (isActive) {
+        return {
+          testName: HealthcheckTests.OSQUERY_STATUS,
+          passed: true,
+          details: "osquery daemon is running (systemd)",
+          timestamp: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Fallback: check via pgrep (container/standalone mode)
+    const pgrepResult = await this.shieldService.runCommand(
+      "pgrep -f osqueryd >/dev/null 2>&1 && echo running || echo stopped"
+    );
+
+    if (pgrepResult.success && pgrepResult.data) {
+      const output = (pgrepResult.data.stdout || "").trim();
+      if (output === "running") {
+        return {
+          testName: HealthcheckTests.OSQUERY_STATUS,
+          passed: true,
+          details: "osquery daemon is running (standalone)",
+          timestamp: new Date().toISOString(),
+        };
+      }
     }
 
     return {
       testName: HealthcheckTests.OSQUERY_STATUS,
       passed: false,
-      details: "Could not check osquery status",
+      details: "osquery daemon is not running",
       timestamp: new Date().toISOString(),
     };
   }

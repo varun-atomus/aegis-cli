@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { ContainerClient } from "@azure/storage-blob";
-import { execSync } from "child_process";
-import { existsSync, mkdirSync, chmodSync, readFileSync } from "fs";
+import { execSync, spawn as spawnProcess } from "child_process";
+import { existsSync, mkdirSync, chmodSync, readFileSync, openSync } from "fs";
 import path from "path";
 import { webcrypto } from "crypto";
 import { Service } from "../base/service";
@@ -430,24 +430,22 @@ export class ShieldService extends Service {
         this.runLinuxInstallCommands(commands);
       } else {
         const shieldBinaryPath = `${cfg.AGENT_DIR}/${ShieldInstallConfig.BINARY_NAME}`;
-        const standaloneStartCommand = this.getStandaloneStartCommand(
-          servicePath,
-          shieldBinaryPath
-        );
 
-        // container/non-systemd path
-        const commands = [
+        // container/non-systemd: install files first
+        const installCommands = [
           `mkdir -p "${cfg.AGENT_DIR}"`,
           `cp "${binaryPath}" "${cfg.AGENT_DIR}/"`,
           `chmod +x "${shieldBinaryPath}"`,
           `pkill -f "${shieldBinaryPath}" 2>/dev/null || true`,
-          `nohup sh -c '${standaloneStartCommand}' >/tmp/atomus-shield.log 2>&1 &`,
         ];
 
         this.logger.info(
           "Systemd not detected. Installing and launching Shield in standalone mode..."
         );
-        this.runLinuxInstallCommands(commands);
+        this.runLinuxInstallCommands(installCommands);
+
+        // Launch Shield as a proper detached background process via Node spawn
+        this.launchShieldStandalone(shieldBinaryPath);
       }
 
       // Give Shield time to start after install
@@ -567,6 +565,20 @@ export class ShieldService extends Service {
     } catch {
       return `"${fallbackBinaryPath}"`;
     }
+  }
+
+  private launchShieldStandalone(binaryPath: string): void {
+    const logPath = "/tmp/atomus-shield.log";
+    const logFd = openSync(logPath, "w");
+
+    const child = spawnProcess(binaryPath, [], {
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+      env: { ...process.env },
+    });
+
+    child.unref();
+    this.logger.info(`Shield launched in background (PID: ${child.pid})`);
   }
 
   private isShieldProcessRunning(): boolean {

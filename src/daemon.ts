@@ -18,6 +18,7 @@ import { ToadScheduler, SimpleIntervalJob, CronJob, AsyncTask } from "toad-sched
 import { AuthService } from "./services/auth/auth.service";
 import { ConfigService } from "./services/config/config.service";
 import { ShieldService } from "./services/shield/shield.service";
+import { OsqueryService } from "./services/osquery/osquery.service";
 import { HealthcheckService } from "./services/healthcheck/healthcheck.service";
 import { writePidFile, removePidFile, ensureDirectories } from "./utils/directories";
 import { daemonLogger, createServiceLogger } from "./utils/logger";
@@ -31,6 +32,7 @@ const log = createServiceLogger("daemon", true);
 let authService: AuthService;
 let configService: ConfigService;
 let shieldService: ShieldService;
+let osqueryService: OsqueryService;
 let healthcheckService: HealthcheckService;
 let scheduler: ToadScheduler;
 
@@ -47,6 +49,9 @@ async function initializeServices(): Promise<void> {
 
   shieldService = new ShieldService(configService);
   await shieldService.init();
+
+  osqueryService = new OsqueryService(configService);
+  await osqueryService.init();
 
   healthcheckService = new HealthcheckService(shieldService, configService);
   await healthcheckService.init();
@@ -151,6 +156,36 @@ function setupScheduler(): void {
 
   scheduler.addSimpleIntervalJob(shieldKeepAliveJob);
   log.info("Scheduled shield keepalive (every 5 minutes)");
+
+  // Osquery keepalive every 5 minutes (Linux only)
+  if (process.platform === "linux") {
+    const osqueryKeepAliveTask = new AsyncTask(
+      "osquery-keepalive",
+      async () => {
+        if (!osqueryService.isOsquerydRunning()) {
+          log.warn("osqueryd not running. Attempting restart...");
+          const result = await osqueryService.setupOsquery();
+          if (result.success) {
+            log.info("osqueryd restarted successfully");
+          } else {
+            log.warn(`osqueryd restart failed: ${result.error}`);
+          }
+        }
+      },
+      (err) => {
+        log.error(`Osquery keepalive error: ${err.message}`);
+      }
+    );
+
+    const osqueryKeepAliveJob = new SimpleIntervalJob(
+      { milliseconds: 5 * Duration.MINUTE, runImmediately: false },
+      osqueryKeepAliveTask,
+      { preventOverrun: true }
+    );
+
+    scheduler.addSimpleIntervalJob(osqueryKeepAliveJob);
+    log.info("Scheduled osquery keepalive (every 5 minutes)");
+  }
 
   // Config refresh every 12 hours
   const configRefreshTask = new AsyncTask(

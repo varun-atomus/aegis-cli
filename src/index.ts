@@ -36,6 +36,7 @@ import {
 import { AuthService } from "./services/auth/auth.service";
 import { ConfigService } from "./services/config/config.service";
 import { ShieldService } from "./services/shield/shield.service";
+import { OsqueryService } from "./services/osquery/osquery.service";
 import { HealthcheckService } from "./services/healthcheck/healthcheck.service";
 import { ensureUserDirectories } from "./utils/directories";
 import { Service } from "./services/base/service";
@@ -45,6 +46,7 @@ import { Service } from "./services/base/service";
 let _authService: AuthService | null = null;
 let _configService: ConfigService | null = null;
 let _shieldService: ShieldService | null = null;
+let _osqueryService: OsqueryService | null = null;
 let _healthcheckService: HealthcheckService | null = null;
 
 async function getAuthService(): Promise<AuthService> {
@@ -73,6 +75,15 @@ async function getShieldService(): Promise<ShieldService> {
   return _shieldService;
 }
 
+async function getOsqueryService(): Promise<OsqueryService> {
+  const config = await getConfigService();
+  if (!_osqueryService) {
+    _osqueryService = new OsqueryService(config);
+    await _osqueryService.init();
+  }
+  return _osqueryService;
+}
+
 async function getHealthcheckService(): Promise<HealthcheckService> {
   const shield = await getShieldService();
   const config = await getConfigService();
@@ -87,8 +98,9 @@ async function getAllServices() {
   const auth = await getAuthService();
   const config = await getConfigService();
   const shield = await getShieldService();
+  const osquery = await getOsqueryService();
   const healthcheck = await getHealthcheckService();
-  return { auth, config, shield, healthcheck };
+  return { auth, config, shield, osquery, healthcheck };
 }
 
 // ─── Wire up service log alerts ─────────────────────────────────────────
@@ -128,6 +140,7 @@ registerStartCommand(program, async () => ({
   auth: await getAuthService(),
   config: await getConfigService(),
   shield: await getShieldService(),
+  osquery: await getOsqueryService(),
 }));
 registerShieldCommands(program, async () => ({ shield: await getShieldService() }));
 registerUninstallCommand(program);

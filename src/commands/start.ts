@@ -6,6 +6,7 @@ import path from "path";
 import { AuthService } from "../services/auth/auth.service";
 import { ConfigService } from "../services/config/config.service";
 import { ShieldService } from "../services/shield/shield.service";
+import { OsqueryService } from "../services/osquery/osquery.service";
 import { CloudInstance } from "../types";
 import { isDaemonRunning } from "../utils/directories";
 
@@ -19,6 +20,7 @@ export function registerStartCommand(
     auth: AuthService;
     config: ConfigService;
     shield: ShieldService;
+    osquery: OsqueryService;
   }>
 ): void {
   program
@@ -37,7 +39,7 @@ export function registerStartCommand(
     )
     .option("--force-pull", "Always pull fresh config before start")
     .action(async (options) => {
-      const { auth, config, shield } = await getServices();
+      const { auth, config, shield, osquery } = await getServices();
 
       let cloudInstance: CloudInstance = options.cloud as CloudInstance;
       if (options.email) {
@@ -109,7 +111,24 @@ export function registerStartCommand(
         }
       }
 
-      // 4) Start daemon if not running
+      // 4) Setup osquery (install binary + download configs + launch)
+      if (process.platform === "linux") {
+        const osquerySpinner = ora("Setting up osquery...").start();
+        if (osquery.isOsquerydRunning()) {
+          osquerySpinner.succeed("osqueryd already running");
+        } else {
+          const osqueryResult = await osquery.setupOsquery();
+          if (osqueryResult.success && osquery.isOsquerydRunning()) {
+            osquerySpinner.succeed("osqueryd installed and running");
+          } else if (!osqueryResult.success) {
+            osquerySpinner.warn(`osquery setup: ${osqueryResult.error}`);
+          } else {
+            osquerySpinner.warn("osquery setup: osqueryd not running after setup");
+          }
+        }
+      }
+
+      // 5) Start daemon if not running
       const daemonStatus = isDaemonRunning();
       if (daemonStatus.running) {
         console.log(

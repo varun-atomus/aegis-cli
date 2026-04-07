@@ -5,6 +5,7 @@ import ora from "ora";
 import { AuthService } from "../services/auth/auth.service";
 import { ConfigService } from "../services/config/config.service";
 import { ShieldService } from "../services/shield/shield.service";
+import { OsqueryService } from "../services/osquery/osquery.service";
 import { HealthcheckService } from "../services/healthcheck/healthcheck.service";
 import { getDeviceInfo } from "../utils/device-info";
 import { isDaemonRunning } from "../utils/directories";
@@ -19,6 +20,7 @@ export function registerStatusCommand(
     auth: AuthService;
     config: ConfigService;
     shield: ShieldService;
+    osquery: OsqueryService;
     healthcheck: HealthcheckService;
   }>
 ): void {
@@ -30,7 +32,7 @@ export function registerStatusCommand(
       const spinner = ora("Checking status...").start();
 
       try {
-        const { auth, config, shield } = await getServices();
+        const { auth, config, shield, osquery } = await getServices();
         const deviceInfo = getDeviceInfo();
         const daemonStatus = isDaemonRunning();
 
@@ -51,6 +53,9 @@ export function registerStatusCommand(
         // Config status
         const lastConfigPull = config.getLastPullTime();
 
+        // Osquery status (Linux only)
+        const osqueryRunning = process.platform === "linux" && osquery.isOsquerydRunning();
+
         spinner.stop();
 
         if (options.json) {
@@ -66,6 +71,10 @@ export function registerStatusCommand(
               running: shieldAlive,
               pid: shieldInfo?.pid || null,
               version: shieldInfo?.version || null,
+            },
+            osquery: {
+              running: osqueryRunning,
+              installed: process.platform === "linux" && osquery.isOsqueryInstalled(),
             },
             daemon: daemonStatus,
             config: {
@@ -141,6 +150,19 @@ export function registerStatusCommand(
             ? `PID: ${shieldInfo?.pid || "?"}, v${shieldInfo?.version || "?"}`
             : "Shield daemon not reachable",
         ]);
+
+        // Osquery (Linux only)
+        if (process.platform === "linux") {
+          statusTable.push([
+            "Osquery",
+            osqueryRunning ? chalk.green("● Running") : chalk.red("● Offline"),
+            osqueryRunning
+              ? "osqueryd daemon active"
+              : osquery.isOsqueryInstalled()
+                ? "Installed but not running"
+                : "Not installed",
+          ]);
+        }
 
         // Daemon
         statusTable.push([

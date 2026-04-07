@@ -160,6 +160,28 @@ export const ShieldInstallConfig = {
   TMP_DIR: "/tmp/aegis-shield-install",
 } as const;
 
+// ─── Osquery Install Configuration ──────────────────────────────────────────
+
+export const OsqueryInstallConfig = {
+  /** Azure Blob Storage container names for osquery resources */
+  CONTAINERS: {
+    configs: "osquery-configs-linux",
+    packs: "osquery-packs-linux",
+    crossPlatformPacks: "osquery-packs-609",
+    queries: "osquery-queries",
+  },
+  /** Local install paths */
+  INSTALL_DIR: "/opt/osquery",
+  CONFIG_DIR: "/var/lib/aegis-cli/osquery",
+  PACKS_DIR: "/var/lib/aegis-cli/osquery/packs",
+  DB_DIR: "/var/lib/aegis-cli/osquery/db",
+  LOG_DIR: "/var/log/aegis-cli/osquery",
+  PID_FILE: "/var/lib/aegis-cli/osquery/osqueryd.pidfile",
+  CONFIG_FILE: "osquery.conf",
+  /** Temp download directory */
+  TMP_DIR: "/tmp/aegis-osquery-install",
+} as const;
+
 // ─── Aegis Config Keys ─────────────────────────────────────────────────────
 
 export const AegisConfigKeys = {
