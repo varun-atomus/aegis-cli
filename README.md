@@ -17,7 +17,7 @@ aegis status
 ### Ubuntu / Debian
 
 ```bash
-apt-get update && apt-get install -y \
+sudo apt-get update && sudo apt-get install -y \
   git curl sudo \
   libsecret-1-0 libglib2.0-0 dbus \
   software-properties-common gnupg
@@ -34,7 +34,8 @@ yum install -y git curl sudo libsecret dbus-libs gnupg2
 ```bash
 # Ubuntu / Debian
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt-get install -y nodejs
+sudo apt-get install -y nodejs
+sudo apt install npm
 
 # RHEL / CentOS
 curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
@@ -79,6 +80,7 @@ npm run package:mac                # macOS ARM64 only
 ```bash
 sudo cp bin/aegis-linux-x64 /usr/local/bin/aegis
 sudo chmod +x /usr/local/bin/aegis
+sudo apt-get install -y libsecret-1-0
 ```
 
 ## Authentication

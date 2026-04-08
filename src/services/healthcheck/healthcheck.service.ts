@@ -401,7 +401,18 @@ export class HealthcheckService extends Service {
 
     if (result.success && result.data) {
       const stdout = result.data.stdout || "";
-      const isActive = stdout.includes("active") || stdout.includes("/mdatp");
+      // systemctl is-active prints "inactive" on failure — do not use .includes("active")
+      // or "inactive" incorrectly passes.
+      const lines = stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const systemdActive = lines.some((l) => l === "active");
+      const hasMdatpBinary = lines.some(
+        (l) => l.startsWith("/") && l.includes("mdatp")
+      );
+      const isActive = systemdActive || hasMdatpBinary;
       return {
         testName: HealthcheckTests.DEFENDER,
         passed: isActive,
